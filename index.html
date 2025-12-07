@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phòng Thí Nghiệm Vật Lý Ảo - Lớp 11 (Cải Tiến)</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --primary-color: #3b82f6; /* Blue-500 */
+            --secondary-color: #10b981; /* Emerald-500 */
+            --accent-color: #f59e0b; /* Amber-500 */
+            --bg-light: #f9fafb; /* Gray-50 */
+            --text-dark: #111827; /* Gray-900 */
+            --border-color: #e5e7eb; /* Gray-200 */
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-light);
+            color: var(--text-dark);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Layout */
+        #sidebar {
+            width: 300px;
+            background-color: #fff;
+            border-right: 1px solid var(--border-color);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        #main-content {
+            flex: 1;
+            padding: 1.5rem;
+            display: grid;
+            grid-template-columns: 2fr 1fr; /* Cột biểu đồ chính và cột phụ */
+            grid-template-rows: 1fr 1fr; /* Hàng biểu đồ x,v,a và hàng năng lượng, vòng tròn */
+            gap: 1.5rem;
+            overflow-y: auto;
+        }
+
+        /* UI Elements */
+        h1, h2, h3 {
+            color: var(--text-dark);
+            margin-bottom: 1rem;
+        }
+
+        h1 { font-size: 1.5rem; font-weight: 700; }
+        h2 { font-size: 1.25rem; font-weight: 600; }
+        h3 { font-size: 1rem; font-weight: 600; }
+
+        .control-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .control-label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: #4b5563; /* Gray-600 */
+        }
+
+        input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+        }
+        
+        .value-display {
+            font-variant-numeric: tabular-nums;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        .info-box {
+            background-color: #f3f4f6; /* Gray-100 */
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+        
+        .formula {
+            font-family: 'Courier New', monospace;
+            background-color: #e5e7eb;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+        }
+
+        .chart-container {
+            background-color: #fff;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            padding: 1rem;
+            position: relative;
+            height: 100%; /* Chiếm toàn bộ chiều cao của grid cell */
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        #circular-motion-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            aspect-ratio: 1;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-primary { background-color: var(--primary-color); color: #fff; border: none; }
+        .btn-primary:hover { background-color: #2563eb; }
+        .btn-secondary { background-color: #e5e7eb; color: var(--text-dark); border: 1px solid var(--border-color); }
+        .btn-secondary:hover { background-color: #d1d5db; }
+
+        /* Grid Placement */
+        #charts-xva { grid-column: 1; grid-row: 1; }
+        #chart-energy { grid-column: 1; grid-row: 2; }
+        #circular-motion { grid-column: 2; grid-row: 1 / span 2; } /* Chiếm 2 hàng */
+    </style>
+</head>
+<body>
+
+    <aside id="sidebar">
+        <h1>🧪 PTN Vật Lý Ảo - Lớp 11</h1>
+        
+        <div class="control-group">
+            <h3>Thông số Dao động</h3>
+            <label class="control-label">Biên độ A: <span id="val-A" class="value-display">100</span> cm</label>
+            <input type="range" id="input-A" min="10" max="200" value="100">
+
+            <label class="control-label">Tần số f: <span id="val-f" class="value-display">0.5</span> Hz</label>
+            <input type="range" id="input-f" min="0.1" max="2.0" step="0.1" value="0.5">
+
+            <label class="control-label">Pha ban đầu φ: <span id="val-phi" class="value-display">0.00</span> rad</label>
+            <input type="range" id="input-phi" min="-3.14" max="3.14" step="0.01" value="0.00">
+
+            <label class="control-label">Tốc độ mô phỏng:</label>
+            <select id="speed-select" class="p-2 border rounded w-full">
+                <option value="1">Bình thường (1x)</option>
+                <option value="0.5">Chậm (0.5x)</option>
+                <option value="0.25">Rất chậm (0.25x)</option>
+            </select>
+        </div>
+
+        <div class="control-group flex space-x-2">
+            <button id="btn-pause" class="btn btn-primary flex-1">Tạm dừng</button>
+            <button id="btn-reset" class="btn btn-secondary flex-1">Đặt lại</button>
+        </div>
+
+        <div class="info-box">
+            <h3>Năng lượng (Giả sử m=1kg)</h3>
+            <p>Động năng (Wđ): <span id="val-Wd" class="value-display">0.00</span> J</p>
+            <p>Thế năng (Wt): <span id="val-Wt" class="value-display">0.00</span> J</p>
+            <p>Cơ năng (W): <span id="val-W" class="value-display">0.00</span> J</p>
+        </div>
+
+        <div class="info-box">
+            <h3>Công thức</h3>
+            <p>x = A·cos(ωt + φ)</p>
+            <p>v = -Aω·sin(ωt + φ)</p>
+            <p>a = -Aω²·cos(ωt + φ)</p>
+            <p>ω = 2πf = <span id="val-omega" class="formula">3.14</span> rad/s</p>
+            <p>T = 1/f = <span id="val-T" class="formula">2.00</span> s</p>
+        </div>
+    </aside>
+
+    <main id="main-content">
+        
+        <div id="charts-xva" class="chart-container">
+            <canvas id="xvaChart"></canvas>
+        </div>
+
+        <div id="chart-energy" class="chart-container">
+            <canvas id="energyChart"></canvas>
+        </div>
+
+        <div id="circular-motion" class="chart-container" id="circular-motion-container">
+            <h3>Vòng tròn Lượng giác & Vectơ quay</h3>
+            <canvas id="circularChart"></canvas>
+        </div>
+
+    </main>
+
+    <script>
+        // --- Global Variables & State ---
+        let A = 100; // cm
+        let f = 0.5; // Hz
+        let phi = 0.0; // rad
+        let omega = 2 * Math.PI * f;
+        let T = 1 / f;
+        const m = 1; // kg (giả sử)
+        let k = m * omega * omega;
+
+        let time = 0;
+        let simulationSpeed = 1;
+        let isPaused = false;
+        let animationFrameId;
+
+        const MAX_DATA_POINTS = 500;
+        const TIME_STEP = 0.02;
+
+        // --- DOM Elements ---
+        const inputA = document.getElementById('input-A');
+        const inputF = document.getElementById('input-f');
+        const inputPhi = document.getElementById('input-phi');
+        const speedSelect = document.getElementById('speed-select');
+        const btnPause = document.getElementById('btn-pause');
+        const btnReset = document.getElementById('btn-reset');
+
+        const valA = document.getElementById('val-A');
+        const valF = document.getElementById('val-f');
+        const valPhi = document.getElementById('val-phi');
+        const valWd = document.getElementById('val-Wd');
+        const valWt = document.getElementById('val-Wt');
+        const valW = document.getElementById('val-W');
+        const valOmega = document.getElementById('val-omega');
+        const valT = document.getElementById('val-T');
+
+        // --- Chart Configuration ---
+        const commonOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            scales: {
+                x: {
+                    type: 'linear',
+                    position: 'bottom',
+                    title: { display: true, text: 'Thời gian (s)' },
+                    min: 0,
+                    max: 10, // Hiển thị 10s đầu tiên
+                },
+                y: {
+                    beginAtZero: true
+                }
+            },
+            plugins: {
+                legend: { position: 'top' }
+            }
+        };
+
+        // XVA Chart
+        const xvaChartCtx = document.getElementById('xvaChart').getContext('2d');
+        const xvaChart = new Chart(xvaChartCtx, {
+            type: 'line',
+            data: {
+                datasets: [
+                    { label: 'Li độ x (cm)', borderColor: '#3b82f6', data: [], yAxisID: 'y-x', borderWidth: 2, pointRadius: 0 },
+                    { label: 'Vận tốc v (cm/s)', borderColor: '#10b981', data: [], yAxisID: 'y-v', borderWidth: 2, pointRadius: 0 },
+                    { label: 'Gia tốc a (cm/s²)', borderColor: '#f59e0b', data: [], yAxisID: 'y-a', borderWidth: 2, pointRadius: 0 }
+                ]
+            },
+            options: {
+                ...commonOptions,
+                scales: {
+                    ...commonOptions.scales,
+                    'y-x': { type: 'linear', position: 'left', title: { display: true, text: 'x (cm)' } },
+                    'y-v': { type: 'linear', position: 'right', title: { display: true, text: 'v (cm/s)' }, grid: { drawOnChartArea: false } },
+                    'y-a': { type: 'linear', position: 'right', title: { display: true, text: 'a (cm/s²)' }, grid: { drawOnChartArea: false } }
+                }
+            }
+        });
+
+        // Energy Chart
+        const energyChartCtx = document.getElementById('energyChart').getContext('2d');
+        const energyChart = new Chart(energyChartCtx, {
+            type: 'line',
+            data: {
+                datasets: [
+                    { label: 'Động năng Wđ (J)', borderColor: '#10b981', data: [], borderWidth: 2, pointRadius: 0, fill: true, backgroundColor: 'rgba(16, 185, 129, 0.2)' },
+                    { label: 'Thế năng Wt (J)', borderColor: '#3b82f6', data: [], borderWidth: 2, pointRadius: 0, fill: true, backgroundColor: 'rgba(59, 130, 246, 0.2)' },
+                    { label: 'Cơ năng W (J)', borderColor: '#6b7280', data: [], borderWidth: 2, borderDash: [5, 5], pointRadius: 0 }
+                ]
+            },
+            options: {
+                ...commonOptions,
+                scales: {
+                    ...commonOptions.scales,
+                    y: { title: { display: true, text: 'Năng lượng (J)' }, min: 0 }
+                }
+            }
+        });
+
+        // Circular Chart
+        const circularChartCtx = document.getElementById('circularChart').getContext('2d');
+        let circularChart; // Sẽ được khởi tạo trong updateCircularChart
+
+        // --- Simulation Logic ---
+        function updateParameters() {
+            A = parseFloat(inputA.value);
+            f = parseFloat(inputF.value);
+            phi = parseFloat(inputPhi.value);
+            simulationSpeed = parseFloat(speedSelect.value);
+
+            omega = 2 * Math.PI * f;
+            T = 1 / f;
+            k = m * omega * omega;
+
+            // Cập nhật hiển thị
+            valA.textContent = A.toFixed(0);
+            valF.textContent = f.toFixed(1);
+            valPhi.textContent = phi.toFixed(2);
+            valOmega.textContent = omega.toFixed(2);
+            valT.textContent = T.toFixed(2);
+
+            // Cập nhật giới hạn trục Y cho biểu đồ XVA
+            xvaChart.options.scales['y-x'].max = A * 1.2;
+            xvaChart.options.scales['y-x'].min = -A * 1.2;
+            xvaChart.options.scales['y-v'].max = A * omega * 1.2;
+            xvaChart.options.scales['y-v'].min = -A * omega * 1.2;
+            xvaChart.options.scales['y-a'].max = A * omega * omega * 1.2;
+            xvaChart.options.scales['y-a'].min = -A * omega * omega * 1.2;
+        }
+
+        function calculateValues(t) {
+            const phase = omega * t + phi;
+            const x = A * Math.cos(phase); // cm
+            const v = -A * omega * Math.sin(phase); // cm/s
+            const a = -A * omega * omega * Math.cos(phase); // cm/s²
+
+            // Chuyển đổi đơn vị cho năng lượng (cm -> m)
+            const x_m = x / 100;
+            const v_m = v / 100;
+            const Wd = 0.5 * m * v_m * v_m;
+            const Wt = 0.5 * k * x_m * x_m;
+            const W = Wd + Wt;
+
+            return { x, v, a, Wd, Wt, W, phase };
+        }
+
+        function updateCharts(t, values) {
+            // Cập nhật dữ liệu cho XVA Chart
+            addDataPoint(xvaChart, 0, t, values.x);
+            addDataPoint(xvaChart, 1, t, values.v);
+            addDataPoint(xvaChart, 2, t, values.a);
+
+            // Cập nhật dữ liệu cho Energy Chart
+            addDataPoint(energyChart, 0, t, values.Wd);
+            addDataPoint(energyChart, 1, t, values.Wt);
+            addDataPoint(energyChart, 2, t, values.W);
+
+            // Cập nhật trục thời gian để biểu đồ cuộn
+            if (t > xvaChart.options.scales.x.max) {
+                xvaChart.options.scales.x.min += TIME_STEP * simulationSpeed;
+                xvaChart.options.scales.x.max += TIME_STEP * simulationSpeed;
+                energyChart.options.scales.x.min += TIME_STEP * simulationSpeed;
+                energyChart.options.scales.x.max += TIME_STEP * simulationSpeed;
+            }
+
+            xvaChart.update();
+            energyChart.update();
+
+            // Cập nhật hiển thị giá trị năng lượng
+            valWd.textContent = values.Wd.toFixed(3);
+            valWt.textContent = values.Wt.toFixed(3);
+            valW.textContent = values.W.toFixed(3);
+
+            // Cập nhật Vòng tròn lượng giác
+            updateCircularChart(values.phase);
+        }
+
+        function addDataPoint(chart, datasetIndex, x, y) {
+            chart.data.datasets[datasetIndex].data.push({ x, y });
+            // Giới hạn số lượng điểm dữ liệu để tránh lag
+            if (chart.data.datasets[datasetIndex].data.length > MAX_DATA_POINTS) {
+                chart.data.datasets[datasetIndex].data.shift();
+            }
+        }
+
+        function updateCircularChart(currentPhase) {
+            // Xóa canvas cũ và vẽ lại
+            if (circularChart) circularChart.destroy();
+
+            circularChart = new Chart(circularChartCtx, {
+                type: 'scatter',
+                data: {
+                    datasets: [
+                        {
+                            label: 'Vectơ quay',
+                            data: [{ x: A * Math.cos(currentPhase), y: A * Math.sin(currentPhase) }],
+                            borderColor: '#3b82f6',
+                            backgroundColor: '#3b82f6',
+                            pointRadius: 8,
+                            showLine: true // Vẽ đường từ gốc tọa độ
+                        },
+                        {
+                            label: 'Vị trí trên trục x',
+                            data: [{ x: A * Math.cos(currentPhase), y: 0 }],
+                            borderColor: '#ef4444', // Red-500
+                            backgroundColor: '#ef4444',
+                            pointRadius: 6,
+                            pointStyle: 'rectRot'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    aspectRatio: 1,
+                    animation: false,
+                    scales: {
+                        x: {
+                            min: -200, max: 200,
+                            grid: { color: '#e5e7eb' },
+                            ticks: { display: false } // Ẩn số trên trục
+                        },
+                        y: {
+                            min: -200, max: 200,
+                            grid: { color: '#e5e7eb' },
+                            ticks: { display: false } // Ẩn số trên trục
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false }
+                    }
+                },
+                plugins: [{
+                    id: 'drawCircle',
+                    beforeDraw: (chart) => {
+                        const ctx = chart.ctx;
+                        const xAxis = chart.scales.x;
+                        const yAxis = chart.scales.y;
+                        
+                        // Vẽ vòng tròn bán kính A
+                        ctx.beginPath();
+                        ctx.arc(xAxis.getPixelForValue(0), yAxis.getPixelForValue(0), xAxis.getPixelForValue(A) - xAxis.getPixelForValue(0), 0, 2 * Math.PI);
+                        ctx.lineWidth = 2;
+                        ctx.strokeStyle = '#d1d5db'; // Gray-300
+                        ctx.stroke();
+
+                        // Vẽ đường gióng xuống trục x
+                        ctx.beginPath();
+                        ctx.moveTo(xAxis.getPixelForValue(A * Math.cos(currentPhase)), yAxis.getPixelForValue(A * Math.sin(currentPhase)));
+                        ctx.lineTo(xAxis.getPixelForValue(A * Math.cos(currentPhase)), yAxis.getPixelForValue(0));
+                        ctx.lineWidth = 1;
+                        ctx.strokeStyle = '#ef4444'; // Red-500
+                        ctx.setLineDash([5, 5]);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                    }
+                }]
+            });
+        }
+
+
+        function simulationLoop() {
+            if (!isPaused) {
+                const values = calculateValues(time);
+                updateCharts(time, values);
+                time += TIME_STEP * simulationSpeed;
+            }
+            animationFrameId = requestAnimationFrame(simulationLoop);
+        }
+
+        // --- Event Listeners ---
+        inputA.addEventListener('input', updateParameters);
+        inputF.addEventListener('input', updateParameters);
+        inputPhi.addEventListener('input', updateParameters);
+        speedSelect.addEventListener('change', updateParameters);
+
+        btnPause.addEventListener('click', () => {
+            isPaused = !isPaused;
+            btnPause.textContent = isPaused ? 'Tiếp tục' : 'Tạm dừng';
+            btnPause.classList.toggle('btn-primary');
+            btnPause.classList.toggle('btn-secondary');
+        });
+
+        btnReset.addEventListener('click', () => {
+            time = 0;
+            isPaused = true;
+            btnPause.textContent = 'Tiếp tục';
+            btnPause.classList.remove('btn-primary');
+            btnPause.classList.add('btn-secondary');
+            
+            // Reset dữ liệu biểu đồ
+            xvaChart.data.datasets.forEach(dataset => dataset.data = []);
+            energyChart.data.datasets.forEach(dataset => dataset.data = []);
+            xvaChart.options.scales.x.min = 0;
+            xvaChart.options.scales.x.max = 10;
+            energyChart.options.scales.x.min = 0;
+            energyChart.options.scales.x.max = 10;
+            
+            updateParameters();
+            const values = calculateValues(time);
+            updateCharts(time, values); // Cập nhật trạng thái ban đầu
+        });
+
+        // --- Initialization ---
+        updateParameters();
+        simulationLoop();
+        // Tạm dừng ban đầu để người dùng chuẩn bị
+        btnPause.click(); 
+
+    </script>
+</body>
+</html>
